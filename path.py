@@ -8,10 +8,11 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 OBSTACLE_COLOR = (0, 0, 0)
 FREE_COLOR = (255, 255, 255)
-END_COLOR = (8, 201, 255)
+END_COLOR = (0, 21, 255)
 PURPLE = (185, 8, 255)
 LINE_COLOR = (168, 166, 158)
 START_COLOR = (255, 135, 8)
+OPEN_COLOR = (52, 235, 180)
 
 # Display setting
 WIN = pygame.display.set_mode ((WIDTH, WIDTH))
@@ -31,7 +32,11 @@ class Pixel:
 		self.name = "FREE"
 		self.neighbors = []
 		self.total_rows = total_rows
-		self.dijkstraDistance = 0
+		self.dijkstraDistance = 0	# For Dijkstra algorithm
+		self.G = 0		# Distance from starting node
+		self.H = 0		# Distance from end node
+		self.F = 0		# G + H
+		self.previous = None
 
 	def getCoords (self): 
 		# get_pos
@@ -39,13 +44,14 @@ class Pixel:
 
 	def getColor (self): 
 		"""
-		"RED" --> Closed
-		"GREEN" --> Open
+		"RED" --> A* path
+		"GREEN" --> Searching path
 		"OBSTACLE" --> Obstacle
 		"START" --> Start point
 		"END" --> End point
 		"FREE" --> Free pixel
-		"PURPLE" --> Path
+		"PURPLE" --> Dijkstra path
+		"OPEN" --> A star open 
 		"""
 		return self.name
 
@@ -99,6 +105,37 @@ class Queue:
 
 	def see (self): 
 		print (len(self._queue))
+
+class PriorityQueue: 
+
+	def __init__ (self): 
+		self.queue = {}
+
+	def isNone (self): 
+		return len(self.queue) == 0
+
+	def enqueue (self, data, priority): 
+		if priority in self.queue: 
+			temp = self.queue[priority]
+			temp.add (data)
+			self.queue[priority] = temp
+
+		else: 
+			self.queue[priority] = {data}
+
+	def dequeue (self): 
+
+		if len(self.queue) == 0: 
+			return False
+
+		else: 
+			minPriority = min (self.queue.keys())
+			guest = self.queue[minPriority]
+
+			if len(guest) == 1: 
+				self.queue.pop (minPriority)
+
+			return guest.pop()
 
 # ----- Functions -----
 def heuristic (pixel1, pixel2):
@@ -237,7 +274,62 @@ def Dijkstra (drawFunc, grid, start, end):
 			break
 		nearest.setColor ("PURPLE", PURPLE)
 		drawFunc()
-		
+
+def aStar (drawFunc, grid, start, end): 
+	"""
+	Runs Dijkstra path finding algorith.
+	"""
+	pygame.display.set_caption ("Running A* algorithm...")
+	queue = PriorityQueue()
+
+	# Start from startpoint
+	for n in start.neighbors: 
+		n.previous = start
+		n.setColor ("OPEN", OPEN_COLOR)
+		n.G = 1
+		n.H = heuristic (n, end)
+		n.F = 1 + heuristic (n, end)
+		queue.enqueue (n, n.F)
+
+	run = True
+	while run:
+		drawFunc()
+
+		for event in pygame.event.get():
+			if event.type == pygame.QUIT:
+				pygame.quit()
+
+		if queue.isNone(): 
+			# Path not found
+			run = False
+
+		nxt = queue.dequeue()
+		if nxt == False:
+			# Path not found 
+			return False
+
+		nxt.setColor ("GREEN", GREEN)
+		for i in nxt.neighbors: 
+			if end == i: 
+				end.previous = nxt
+				run = False
+			if i.name == "FREE": 
+				i.previous = nxt
+				i.setColor ("OPEN", OPEN_COLOR)
+				i.G = nxt.G + 1
+				i.H = heuristic (i, end)
+				i.F = i.H + i.G
+				queue.enqueue (i, i.F)
+
+	temp = end
+	while True: 
+		# Printing the path from end to start
+		temp = temp.previous
+		if temp == start: 
+			break
+		temp.setColor ("RED", RED)
+		drawFunc()
+
 def getNearestNeighbor (pixel): 
 	"""
 	This function returns the neightbor pixel with the smallest distance to the endpoint. 
@@ -288,6 +380,21 @@ def main (window, width):
 					end = None
 					grid = makeGrid (ROWS, width)
 
+				# Press C to clear the grid
+				if event.key == pygame.K_c and started: 
+					pygame.display.set_caption ("Path finding algorithm visualization")
+					started = False
+					newGrid = makeGrid (ROWS, width)
+
+					for y, row in enumerate (grid): 
+
+						for x, pixel in enumerate (row): 
+
+							if pixel.name == "OBSTACLE" or pixel.name == "START" or pixel.name =="END": 
+								newGrid[y][x] = pixel
+
+					grid = newGrid
+
 			if started: 
 				# Block following events once the event was excecuted
 				continue
@@ -330,16 +437,21 @@ def main (window, width):
 			if event.type == pygame.KEYDOWN: 
 
 				# Run A* algorithm
-				if event.key == pygame.K_SPACE and not started: 
+				if event.key == pygame.K_a and not started: 
 
-					if start != None and end != None: 
-						started = True
+					if start == None and end == None: 
+						continue
+					started = True
 						
-						for row in grid: 
-							for pixel in row: 
-								pixel.updateNeighbors (grid)
+					for row in grid: 
+						for pixel in row: 
+							pixel.updateNeighbors (grid)
 
-						# aStartAlgorithm (lambda: draw(WIN, grid, ROWS, WIDTH), grid, start, end)
+					result = aStar (lambda: draw(WIN, grid, ROWS, WIDTH), grid, start, end)
+					if result == False: 
+						pygame.display.set_caption ("Could not find any path!")
+					else: 
+						pygame.display.set_caption ("Shortest path found!")
 
 				# Run Dijkstra algorith
 				if event.key == pygame.K_d and not started: 
