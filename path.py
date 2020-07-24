@@ -1,18 +1,17 @@
 import pygame
 import math 
-from queue import PriorityQueue
 
 # ----- Constants ----- 
-WIDTH = 800
+WIDTH = 600
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-TURQOISE = (8, 201, 255)
+OBSTACLE_COLOR = (0, 0, 0)
+FREE_COLOR = (255, 255, 255)
+END_COLOR = (8, 201, 255)
 PURPLE = (185, 8, 255)
-GREY = (168, 166, 158)
-ORANGE = (255, 135, 8)
+LINE_COLOR = (168, 166, 158)
+START_COLOR = (255, 135, 8)
 
 # Display setting
 WIN = pygame.display.set_mode ((WIDTH, WIDTH))
@@ -28,50 +27,31 @@ class Pixel:
 		self.width = width
 		self.x = row * width
 		self.y = column * width
-		self.color = WHITE
+		self.color = FREE_COLOR
+		self.name = "FREE"
 		self.neighbors = []
 		self.total_rows = total_rows
+		self.dijkstraDistance = 0
 
 	def getCoords (self): 
 		# get_pos
 		return self.row, self.column
 
-	def isClosed (self): 
-		return self.color == RED
+	def getColor (self): 
+		"""
+		"RED" --> Closed
+		"GREEN" --> Open
+		"OBSTACLE" --> Obstacle
+		"START" --> Start point
+		"END" --> End point
+		"FREE" --> Free pixel
+		"PURPLE" --> Path
+		"""
+		return self.name
 
-	def isOpen (self): 
-		return self.color == GREEN
-
-	def isObstacle (self): 
-		# is_barrier
-		return self.color == BLACK
-
-	def isStart (self): 
-		return self.color == ORANGE
-
-	def isEnd (self): 
-		return self.color == TURQOISE
-
-	def reset (self): 
-		self.color = WHITE
-
-	def makeClosed (self): 
-		self.color = RED
-
-	def makeOpen (self): 
-		self.color = GREEN
-
-	def makeObstacle (self): 
-		self.color = BLACK
-
-	def makeEnd (self): 
-		self.color = TURQOISE
-
-	def makePath (self): 
-		self.color = PURPLE
-
-	def makeStart (self): 
-		self.color = ORANGE
+	def setColor (self, name, color):
+		self.name = name
+		self.color = color
 
 	def draw (self, window): 
 		pygame.draw.rect (window, self.color, (self.x, self.y, self.width, self.width))
@@ -79,16 +59,16 @@ class Pixel:
 	def updateNeighbors (self, grid): 
 		self.neighbors = []
 		# Down neighbor
-		if self.row < self.total_rows - 1 and not grid[self.row+1][self.column].isObstacle():
+		if self.row < self.total_rows - 1 and not grid[self.row+1][self.column].getColor() == "OBSTACLE":
 			self.neighbors.append (grid[self.row+1][self.column])
 		# Up neighbor
-		if self.row > 0 and not grid[self.row-1][self.column].isObstacle():
+		if self.row > 0 and not grid[self.row-1][self.column].getColor() == "OBSTACLE":
 			self.neighbors.append (grid[self.row-1][self.column])
 		# Right neighbor
-		if self.column < self.total_rows - 1 and not grid[self.row][self.column+1].isObstacle():
+		if self.column < self.total_rows - 1 and not grid[self.row][self.column+1].getColor() == "OBSTACLE":
 			self.neighbors.append (grid[self.row][self.column+1])
 		# Left neighbor
-		if self.column > 0 and not grid[self.row][self.column-1].isObstacle():
+		if self.column > 0 and not grid[self.row][self.column-1].getColor() == "OBSTACLE":
 			self.neighbors.append (grid[self.row][self.column-1])
 
 	def __lt__ (self, other): 
@@ -97,18 +77,47 @@ class Pixel:
 		"""
 		return False
 
+class Queue: 
+
+	def __init__ (self): 
+		self._queue = []
+
+	def enqueue (self, value): 
+		self._queue.append (value)
+
+	def dequeue (self): 
+		self._queue.pop(0)
+
+	def next (self): 
+		try: 
+			return self._queue[0]
+		except: 
+			return False
+
+	def isEmpty (self): 
+		return len (self._queue) == 0
+
+	def see (self): 
+		print (len(self._queue))
+
 # ----- Functions -----
 def heuristic (pixel1, pixel2):
 	"""
 	Returns the Manhattan distance.
+	:param pixel1: Pixel
+	:param pixel2: Pixel
+	:returns: int
 	""" 
-	x1, y1 = pixel1
-	x2, y2 = pixel2
+	x1, y1 = pixel1.getCoords()
+	x2, y2 = pixel2.getCoords()
 	return abs (x1 - x2) + abs (y1 - y2)
 
 def makeGrid (rows, width): 
 	"""
 	This function constructs and returns the matrix grid.
+	:param rows: int
+	:param width: int
+	:returns: list
 	"""
 	grid = []
 	size = width // rows
@@ -117,6 +126,8 @@ def makeGrid (rows, width):
 		temp = []
 		for j in range (rows): 
 			pixel = Pixel (i, j, size, rows)
+			if i == 0 or j == 0 or i == rows-1 or j == rows-1: 
+				pixel.setColor ("OBSTACLE", OBSTACLE_COLOR)
 			temp.append (pixel)
 		grid.append (temp)
 
@@ -125,22 +136,29 @@ def makeGrid (rows, width):
 def drawLines (window, rows, width): 
 	"""
 	This function draws the grid lines in the window.
+	:param window: pygame.Surface
+	:param rows: int
+	:param width: int
 	"""
 	size = width // rows
 
 	for i in range (rows): 
-		pygame.draw.line (window, GREY, (0, i * size), (width, i * size))
+		pygame.draw.line (window, LINE_COLOR, (0, i * size), (width, i * size))
 
 		for j in range (rows): 
-			pygame.draw.line (window, GREY, (j * size, 0), (j * size, width))
+			pygame.draw.line (window, LINE_COLOR, (j * size, 0), (j * size, width))
 
 def draw (window, grid, rows, width): 
 	"""
 	This functions draws on the grid. 
 	First, it draws each pixel, 
 	then, overdraws with the gridlines. 
+	:param window: pygame.Surface
+	:param grid: list
+	:param rows: int
+	:param width: int
 	"""
-	window.fill (WHITE)
+	window.fill (FREE_COLOR)
 
 	for line in grid: 
 		
@@ -154,6 +172,10 @@ def getClickedPosition (position, rows, width):
 	"""
 	This function returns the grid position. 
 	It translates the clicked coordenates to the grid matrix position.
+	:param position: tuple
+	:param rows: int
+	:param width: int
+	:returns: tuple
 	"""
 	size = width // rows
 	y, x = position
@@ -161,11 +183,86 @@ def getClickedPosition (position, rows, width):
 	col = x // size
 	return row, col
 
+def Dijkstra (drawFunc, grid, start, end): 
+	"""
+	Runs Dijkstra path finding algorith.
+	"""
+	pygame.display.set_caption ("Running Dijkstra algorithm...")
+	queue = Queue()
+	# Starts from end 
+	for neighbor in end.neighbors: 
+		neighbor.setColor ("GREEN", GREEN)
+		neighbor.dijkstraDistance = 1
+		queue.enqueue (neighbor)
+
+	run = True
+	# Path finding
+	while run:
+
+		for event in pygame.event.get():
+			if event.type == pygame.QUIT:
+				pygame.quit()
+
+		if queue.isEmpty(): 
+			run = False
+
+		# Get all the neighbors of next in queue
+		nxt = queue.next()
+		if nxt == False: 
+			# Error, could not find the path
+			return False
+
+		for n in nxt.neighbors: 
+			# Found the goal 
+			if n == start: 
+				run = False
+			if n.name != "FREE": 
+				continue
+
+			else: 
+				n.setColor ("GREEN", GREEN)
+				n.dijkstraDistance = nxt.dijkstraDistance + 1
+				queue.enqueue (n)
+
+		queue.dequeue()
+		drawFunc()
+
+	# Get path
+	temp = start
+	while True: 
+		# Printing the path from start to end
+		nearest = getNearestNeighbor(temp)
+		temp = nearest
+		if temp == end: 
+			break
+		nearest.setColor ("PURPLE", PURPLE)
+		drawFunc()
+		
+def getNearestNeighbor (pixel): 
+	"""
+	This function returns the neightbor pixel with the smallest distance to the endpoint. 
+	:param pixel: Pixel
+	:returns: Pixel
+	"""
+	distances = []
+	pixels = []
+
+	for n in pixel.neighbors: 
+		if n.name == "END": 
+			return n
+		if n.name == "GREEN": 
+			distances.append (n.dijkstraDistance)
+			pixels.append (n)
+
+	minValue = min (distances)
+	minIndex = distances.index (minValue)
+	return (pixels[minIndex])
+
 def main (window, width): 
 	"""
 	Main function
 	"""
-	ROWS = 50
+	ROWS = 40
 	grid = makeGrid (ROWS, width)
 
 	start = None	# Startpoint
@@ -181,6 +278,16 @@ def main (window, width):
 			if event.type == pygame.QUIT:
 				run = False
 
+			if event.type == pygame.KEYDOWN: 
+
+				# Press R to restart the game once the algorithm finished executing
+				if event.key == pygame.K_r and started:
+					pygame.display.set_caption ("Path finding algorithm visualization")
+					started = False
+					start = None
+					end = None
+					grid = makeGrid (ROWS, width)
+
 			if started: 
 				# Block following events once the event was excecuted
 				continue
@@ -194,22 +301,27 @@ def main (window, width):
 				if not start and pixel != end: 
 					# First, place the start position 
 					start = pixel 
-					start.makeStart()
+					start.setColor ("START", START_COLOR)
 				elif not end and pixel != start: 
 					# Secondly, place the end position
 					end = pixel 
-					end.makeEnd()
+					end.setColor ("END", END_COLOR)
 				elif pixel != end and pixel != start: 
 					# At last, place obstacles
-					pixel.makeObstacle() 
+					pixel.setColor ("OBSTACLE", OBSTACLE_COLOR)
 
 			elif pygame.mouse.get_pressed()[2]: 
 				# Right mouse button
 				# Remove obstacles
 				position = pygame.mouse.get_pos()
 				row, col = getClickedPosition (position, ROWS, width)
+				
+				# Do not allow to delete the border
+				if row == 0 or col == 0 or row == len(grid)-1 or col == len(grid)-1:
+					continue
+
 				pixel = grid[row][col]
-				pixel.reset()
+				pixel.setColor ("FREE", FREE_COLOR)
 				if pixel == start: 
 					start = None
 				elif pixel == end: 
@@ -217,15 +329,35 @@ def main (window, width):
 
 			if event.type == pygame.KEYDOWN: 
 
+				# Run A* algorithm
 				if event.key == pygame.K_SPACE and not started: 
+
+					if start != None and end != None: 
+						started = True
+						
+						for row in grid: 
+							for pixel in row: 
+								pixel.updateNeighbors (grid)
+
+						# aStartAlgorithm (lambda: draw(WIN, grid, ROWS, WIDTH), grid, start, end)
+
+				# Run Dijkstra algorith
+				if event.key == pygame.K_d and not started: 
+
+					if start == None or end == None: 
+						continue
 					started = True
-					
+
 					for row in grid: 
 						for pixel in row: 
-							pixel.updateNeighbors(grid)
+							pixel.updateNeighbors (grid)
 
-					# aStartAlgorithm (lambda: draw(WIN, grid, ROWS, WIDTH), grid, start, end)
-
+					result = Dijkstra (lambda: draw(WIN, grid, ROWS, WIDTH), grid, start, end)
+					if result == False: 
+						pygame.display.set_caption ("Could not find any path!")
+					else: 
+						pygame.display.set_caption ("Shortest path found!")
+					
 	pygame.quit()
 
 if __name__ == '__main__':
