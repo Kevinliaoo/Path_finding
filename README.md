@@ -19,6 +19,8 @@ keyboard r: Resets the program, once algorithm finished running
 
 keyboard c: Cleans the grid to run the program again, once algorithm finished runnig
 
+keyboard p: Randomly generates a map (with 500 obstacles points)
+
 ---
 ## Contributor
 
