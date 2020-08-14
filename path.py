@@ -1,5 +1,6 @@
 import pygame
 import math 
+import random
 
 # ----- Constants ----- 
 WIDTH = 600
@@ -350,6 +351,23 @@ def getNearestNeighbor (pixel):
 	minIndex = distances.index (minValue)
 	return (pixels[minIndex])
 
+def generateRandom (grid): 
+	"""
+	This function randomly generates a map. 
+	:param grid: grid
+	:returns: grid
+	"""
+	points = 500
+	while points > 0: 
+		x = random.randint(1, len(grid)-1)
+		y = random.randint(1, len(grid)-1)
+
+		if grid[y][x].name == "FREE": 
+			grid[y][x].setColor ("OBSTACLE", OBSTACLE_COLOR)
+			points -= 1
+
+	return grid
+
 def main (window, width): 
 	"""
 	Main function
@@ -361,6 +379,7 @@ def main (window, width):
 	end = None		# Endpoint
 	run = True 		# Run
 	started = False	# Algorithm running
+	mapGen = False
 
 	while run: 
 		draw (WIN, grid, ROWS, WIDTH)	# Refresh screen
@@ -372,12 +391,18 @@ def main (window, width):
 
 			if event.type == pygame.KEYDOWN: 
 
+				# Press P to randomly generate a map 
+				if event.key == pygame.K_p and started == False and mapGen == False:
+					grid = generateRandom(grid)
+					mapGen = True
+
 				# Press R to restart the game once the algorithm finished executing
 				if event.key == pygame.K_r and started:
 					pygame.display.set_caption ("Path finding algorithm visualization")
 					started = False
 					start = None
 					end = None
+					mapGen = False
 					grid = makeGrid (ROWS, width)
 
 				# Press C to clear the grid
