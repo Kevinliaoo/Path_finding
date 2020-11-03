@@ -40,15 +40,15 @@ python path.py
 
 ## Dijkstra algorithm 
 <br>
-<img src="https://github.com/Kevinliaoo/Path_finding/blob/master/assets/DJ.PNG" width="100" height="100">
+<img src="https://github.com/Kevinliaoo/Path_finding/blob/master/assets/DJ.PNG" width="200" height="200">
 <br>
-<img src="https://github.com/Kevinliaoo/Path_finding/blob/master/assets/DJF.PNG" width="100" height="100">
+<img src="https://github.com/Kevinliaoo/Path_finding/blob/master/assets/DJF.PNG" width="200" height="200">
 <br>
 
 ## A* algorithm 
 <br>
-<img src="https://github.com/Kevinliaoo/Path_finding/blob/master/assets/ASTAR.PNG" width="100" height="100">
-<img src="https://github.com/Kevinliaoo/Path_finding/blob/master/assets/ASTARF.PNG" width="100" height="100">
+<img src="https://github.com/Kevinliaoo/Path_finding/blob/master/assets/ASTAR.PNG" width="200" height="200">
+<img src="https://github.com/Kevinliaoo/Path_finding/blob/master/assets/ASTARF.PNG" width="200" height="200">
 <br>
 
 ---
