@@ -51,7 +51,14 @@ python path.py
 <img src="https://github.com/Kevinliaoo/Path_finding/blob/master/assets/ASTARF.PNG" width="200" height="200">
 <br>
 
----
+
+## What I learned by doing this project: 
+
+* Understanding different types of path finding algorithms
+
+* Using pygame to create a GUI
+
+
 ## Author
 
 Kevin Liao - @kevinliaoo
